@@ -47,77 +47,39 @@ DeviceLogonEvents
 
 ---
 
-### 3. Check if any of the bad actor where able to login
+### 3. Investigate the Machines 
 
-The top 10 most failed login attempts IP addresses have not been able to successfully break into the VM
+Three different virtual machines were potentially impacted by brute force attempts from 4 different public IP:
+
+## Details of Failed Logon Attempts
+
+| **IP Address**       | **Hostname**                                              | **Status**      | **Failed Attempts** |
+|----------------------|----------------------------------------------------------|----------------|--------------------|
+| 170.64.155.135       | linux-programmatic-fix-tau.p2zfvso05mlezjev3ck4vqd3kd.cx.internal.cloudapp.net | LogonFailed    | 63                 |
+| 112.135.212.148      | sa-mde-test-2                                             | LogonFailed    | 58                 |
+| 158.101.242.63       | sa-mde-test-2                                             | LogonFailed    | 40                 |
+| 185.151.86.130       | ir-sentinel-moa                                           | LogonFailed    | 40                 |
+
+
+---
+
+### 4. Containment:Isolated Devices
+I isolated the Devices using MDE then I Ran anti-malware scan on all four devices within MDE.I check to see if any of the IP addresses attempting to brute force successfully logged in with the following query,but none were successful:
 
 **Query used to locate events:**
 
 ```kql
-let RemoteIPsInQuestion = dynamic(["128.1.44.9", "178.20.129.235", "83.118.125.238", "106.246.239.179", "85.215.149.156", "146.196.63.17", "89.232.41.74", "190.5.100.193", "178.176.229.228"]);
 DeviceLogonEvents
-| where LogonType has_any("Network", "Interactive", "RemoteInteractive", "Unlock")
 | where ActionType == "LogonSuccess"
-| where RemoteIP has_any(RemoteIPsInQuestion)
+| where RemoteIP in ("170.64.155.135", "112.135.212.148", "185.151.86.130", "158.101.242.63")
 ```
-<img width="1212" alt="image" src="Screenshot 2025-03-10 143007.png">
-
----
-
-### 4. Check who dose have access to the account
-
-The only successful remote/network logons in the last 7 days was for the ‘labuser’ account (6 total)
-
-**Query used to locate events:**
-
-```kql
-DeviceLogonEvents
-| where LogonType =="Network"
-| where ActionType == "LogonSuccess"
-|where DeviceName =="windows-target-1"
-|where AccountName == ”labuser”
-```
-<img width="1212" alt="image" src="Screenshot 2025-03-10 145153.png">
-
----
-### 5. Check if labuser has any suspicious failed login attemps 
-
-There were (0) failed logons for the ‘labuser’ account,indicating that a brute force attempts for this account didn’t take place,and a 1-time password guess is unlikely.
-
-**Query used to locate events:**
-
-```kql
-DeviceLogonEvents
-| where LogonType =="Network"
-| where ActionType == "LogonFailed"
-|where DeviceName =="windows-target-1"
-|where AccountName == "labuser"
-```
-<img width="1212" alt="image" src="Screenshot 2025-03-10 145659.png">
-
----
-
-### 6. Check if the location from which is being logon from is normal
-
-We checked all of the successful login IP addresses for the “labuser” account to see if any of them were unusual or from an unexpected location,All were normal.
-
-**Query used to locate events:**
-
-```kql
-DeviceLogonEvents
-| where LogonType =="Network"
-| where ActionType == "LogonSuccess" 
-|where DeviceName =="windows-target-1"
-|where AccountName == "labuser"
-| summarize loginCount = count() by DeviceName,ActionType,AccountName,RemoteIP
-```
-<img width="1212" alt="image" src="Screenshot 2025-03-10 150405.png">
+<img width="1212" alt="image" src="Screenshot 2025-03-22 164528.png">
 
 ---
 
 ## Summary
 
-Though the device was exposed to the internet and clear brute force attempts have taken place, there is no evidence of any brute force success or unauthorized access from the legitimate account “labuser”.
+<img width="1212" alt="image" src="Screenshot 2025-03-22 165905.png">
 
 
 MITRE ATT&CK - T1087: Account Discovery 
@@ -128,11 +90,8 @@ MITRE ATT&CK - T1110: Brute Force
 
 ## Response Action
 
---Hardened the NSG attached to “windows-target-1” to allow only RDP traffic from specific end-points(no public internet access)
+NSG was locked down to prevent RDP attempts from the public internet. Policy was proposed to require this for all VMs going forward.Additionally I set a rule only allowing my home IP address.(Alternatively we can use bastion host) 
 
---Implemented account lockout policy
-
---Implement MFA
-
+<img width="1212" alt="image" src="Screenshot 2025-03-22 165025.png">
 
 ---
