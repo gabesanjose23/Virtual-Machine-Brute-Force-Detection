@@ -17,38 +17,33 @@ When entities (local or remote users, usually) attempt to log into a virtual mac
 
 ### Part 1: Create Alert Rule Brute Force Attempt Detection
 
-Here I am seeing the amount of failed logon attempts in the last 5 hours.
+Here I am setting up the rules to detect if there were a excessive amount of login failed attempt.
 
-**Query used to locate events:**
 
-```kql
-DeviceLogonEvents
-| where ActionType == "LogonFailed" and TimeGenerated > ago(5h)
-| summarize EventCount = count() by RemoteIP, DeviceName,ActionType
-| where EventCount >= 10
-| order by EventCount
+<img width="1212" alt="image" src="Screenshot 2025-03-22 161239.png">
 
-```
-<img width="1212" alt="image" src="Screenshot 2025-03-10 140735.png">
+<img width="1212" alt="image" src="Screenshot 2025-03-22 161602.png">
 
 ---
 
-### 2. Find out if anyone has attempted to login into the machine
+### 2. Investigate and find out if anyone has attempted to login into the machine
 
-Several bad actor have been discovered attempting to login into the Target machine.
+Next the rules that I put in place are alerted.
 
 **Query used to locate event:**
 
 ```kql
 DeviceLogonEvents
-|where DeviceName == "windows-target-1"
-| where LogonType has_any("Network", "Interactive", "RemoteInteractive", "Unlock")
-| where ActionType == "LogonFailed"
-| where isnotempty(RemoteIP)
-| summarize Attempts = count() by ActionType, RemoteIP, DeviceName
-| order by Attempts
+| where ActionType == "LogonFailed" and TimeGenerated > ago(5h)
+| summarize EventCount = count() by RemoteIP, DeviceName, ActionType
+| where EventCount >= 10
+| order by EventCount
 ```
-<img width="1212" alt="image" src="Screenshot 2025-03-10 141537.png">
+<img width="1212" alt="image" src="Screenshot 2025-03-22 162815.png">
+
+<img width="1212" alt="image" src="Screenshot 2025-03-22 160732.png">
+
+<img width="1212" alt="image" src="Screenshot 2025-03-22 163912.png">
 
 ---
 
@@ -124,7 +119,6 @@ DeviceLogonEvents
 
 Though the device was exposed to the internet and clear brute force attempts have taken place, there is no evidence of any brute force success or unauthorized access from the legitimate account “labuser”.
 
-MITRE ATT&CK - T1071: Credential Access
 
 MITRE ATT&CK - T1087: Account Discovery 
 
